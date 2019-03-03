@@ -1,20 +1,22 @@
 // back end processes for TallyJ Officer
 // include a version number in logs to know when a new version of this code is in use
-const version = 21;
+const version = 31;
+
+console.log('version', version, 'registered');
 
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp();
-const firestore = admin.firestore();
+// const firestore = admin.firestore();
 const db = admin.database();
 
-exports.manageVotes = functions.firestore
-    .document('/elections/{electionId}')
+exports.onElectionChange = functions.database.ref('/elections/{electionKey}')
     .onUpdate((change, context) => {
-        console.log('election changed', version);
-        const electionId = context.params.electionId;
-        const newValue = change.after.data();
-        const oldValue = change.before.data();
+        const electionKey = context.params.electionKey;
+        console.log('election changed', electionKey);
+        const newValue = change.after.val();
+        const oldValue = change.before.val();
+        console.log('new', newValue, 'old', oldValue);
 
         if (newValue.votingOpen && !oldValue.votingOpen) {
             console.log('voting just opened', newValue);
@@ -37,14 +39,14 @@ exports.manageVotes = functions.firestore
             memberIds.forEach((memberInfo, i) => {
                 // tell this member their symbol
                 var symbol = voteSymbols[i];
-                var path = `/symbols/${electionId}/${memberInfo.id}`;
-                console.log('set', electionId, memberInfo.id, symbol, path);
+                var path = `/users/${electionKey}/${memberInfo.id}`;
+                console.log('set', electionKey, memberInfo.id, symbol, path);
 
-                db.ref(path).set({ symbol: symbol });
+                db.ref(path).update({ symbol: symbol });
 
                 //--> Firestore is way too slow to distribute info to members - sometimes up to 30 seconds!
 
-                // firestore.collection('elections').doc(electionId).collection('memberSymbols').doc(memberInfo.id)
+                // firestore.collection('elections').doc(electionKey).collection('memberSymbols').doc(memberInfo.id)
                 //     .set({
                 //         symbol: voteSymbols[i]
                 //     })
@@ -61,7 +63,7 @@ exports.manageVotes = functions.firestore
         } else if (JSON.stringify(newValue.currentVotes) !== JSON.stringify(oldValue.currentVotes)) {
             console.log('someone just voted');
             var votesDict = newValue.currentVotes;
-            var votesList = Object.keys(votesDict).map(k => { return { symbol: k, id: votesDict[k] }; });
+            var votesList = Object.keys(votesDict).map(k => { return { symbol: k, vote: votesDict[k] }; });
             var numVoted = votesList.filter(v => v.vote).length;
             var numNotVoted = votesList.filter(v => !v.vote).length;
 
@@ -83,29 +85,41 @@ exports.manageVotes = functions.firestore
                 };
                 this.checkIfCompleted(newValue.members, round);
 
-                firestore
-                    .collection("elections")
-                    .doc(electionId)
-                    .collection("positions")
-                    .doc(newValue.positionIdToVoteFor)
-                    .collection("rounds")
-                    .doc(round.id)
-                    .set(round)
-                    .then(() => console.log('saved round', timeStamp))
-                    .catch(error => {
-                        console.log("Error saving round.", error);
-                    });
+                var path = `/elections/${electionKey}/positions/${newValue.positionIdToVoteFor}/rounds/${round.id}`;
+                console.log('set', path);
 
-                firestore
-                    .collection("elections")
-                    .doc(electionId)
-                    .update({
-                        votingOpen: false
-                    })
-                    .then(() => console.log('voting closed'))
-                    .catch(error => {
-                        console.log("Error closing voting.", error);
-                    });
+                db.ref(path).set(round);
+
+                // firestore
+                //     .collection("elections")
+                //     .doc(electionKey)
+                //     .collection("positions")
+                //     .doc(newValue.positionIdToVoteFor)
+                //     .collection("rounds")
+                //     .doc(round.id)
+                //     .set(round)
+                //     .then(() => console.log('saved round', timeStamp))
+                //     .catch(error => {
+                //         console.log("Error saving round.", error);
+                //     });
+
+                path = `/elections/${electionKey}`;
+                console.log('set', path);
+
+                db.ref(path).update({
+                    votingOpen: false
+                });
+
+                // firestore
+                //     .collection("elections")
+                //     .doc(electionKey)
+                //     .update({
+                //         votingOpen: false
+                //     })
+                //     .then(() => console.log('voting closed'))
+                //     .catch(error => {
+                //         console.log("Error closing voting.", error);
+                //     });
             }
 
         } else {
@@ -132,33 +146,31 @@ function checkIfCompleted(memberIds, round) {
     }
 }
 
-exports.onUserStatusChanged = functions.database.ref('/status/{uid}').onUpdate(
+exports.onUserStatusChanged = functions.database.ref('/users/{uid}').onUpdate(
     (change, context) => {
         // const uid = context.params.uid;
 
         // Get the data written to Realtime Database
-        const dbEntry = change.after.val();
-        const status = dbEntry.status;
-        const electionId = dbEntry.electionId;
-        const memberId = dbEntry.memberId;
+        const user = change.after.val();
+        const status = user.status;
+        const electionKey = user.electionKey;
+        const memberId = user.memberId;
 
-        // console.log('status changed', version, uid, memberId, electionId);
+        console.log('status changed', memberId, electionKey, user);
 
         if (status === 'offline') {
             // only concerned about noticing when someone leaves the election
 
-            firestore
-                .collection("elections")
-                .doc(electionId)
-                .collection("members")
-                .doc(memberId)
-                .update({
-                    connected: false
-                })
-                .then(() => console.log('disconnected', version, memberId))
-                .catch(error => {
-                    console.log("Error disconnecting member.", error);
-                });
+            var path = `/elections/${electionKey}/members/${memberId}`;
+            console.log('set', path);
+
+            db.ref(path).update({
+                connected: false
+            });
+            // .then(() => console.log('disconnected', version, memberId))
+            // .catch(error => {
+            //     console.log("Error disconnecting member.", error);
+            // });
         }
         return 'done';
     });
