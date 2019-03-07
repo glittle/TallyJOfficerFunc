@@ -1,6 +1,6 @@
 // back end processes for TallyJ Officer
 // include a version number in logs to know when a new version of this code is in use
-const version = 64;
+const version = 71;
 
 console.log("version", version, "registered");
 
@@ -167,7 +167,11 @@ exports.onElectionChange = functions.database
 
                 return "distributed symbols";
             });
-        } else if (!newValue.votingOpen && oldValue.votingOpen) {
+
+            return "distributed symbols";
+        }
+
+        if (!newValue.votingOpen && oldValue.votingOpen) {
             console.log("voting just closed", electionKey);
 
             db.ref(`/members/${electionKey}`).once("value", snapshot => {
@@ -187,19 +191,77 @@ exports.onElectionChange = functions.database
 
                 return "reset voting status for every member";
             });
-        } else if (newValue.deleteMe) {
-            console.log("delete election?", electionKey);
-        } else {
-            console.log("misc election change new", newValue, "old", oldValue);
+
+            return "reset voting status for every member";
         }
+
+        if (newValue.deleteMe) {
+            console.log("delete election", electionKey);
+
+            // first approach was to delete one by one, but it is too fast to be interesting for the user
+            // delete everything...
+            deleteItems("elections", electionKey);
+            deleteItems("members", electionKey);
+            deleteItems("positions", electionKey);
+            deleteItems("votingRounds", electionKey);
+            deleteItems("voting", electionKey);
+            deleteItems("voterSymbols", electionKey);
+
+            return "deleted election";
+        }
+
+        console.log("misc election change new", newValue, "old", oldValue);
         return "done";
     });
+
+function deleteItems(section, electionKey, cb) {
+    var sectionPath = `/${section}/${electionKey}`;
+
+    console.log("deleting", section);
+
+    // if (oneByOne) {
+    //     db.ref(sectionPath).once("value", snapshot => {
+    //         snapshot.forEach(itemSnapshot => {
+    //             var itemKey = itemSnapshot.key;
+    //             console.log("remove", `${sectionPath}/${itemKey}`);
+    //             db.ref(`${sectionPath}/${itemKey}`).remove();
+    //         });
+
+    //         console.log("remove 1", sectionPath);
+    //         db.ref(sectionPath)
+    //             .remove()
+    //             .then(() => {
+    //                 if (cb) {
+    //                     return cb();
+    //                 }
+    //                 return "done";
+    //             })
+    //             .catch(error => {
+    //                 console.log("error", error);
+    //             });
+
+    //         return "done";
+    //     });
+    // }
+
+    db.ref(sectionPath)
+        .remove()
+        .then(() => {
+            if (cb) {
+                return cb();
+            }
+            return "done";
+        })
+        .catch(error => {
+            console.log("error", error);
+        });
+}
 
 exports.onUserStatusChanged = functions.database
     .ref("/users/{uid}")
     .onUpdate((change, context) => {
         // const uid = context.params.uid;
-
+        // console.log('user context', context);
         // Get the data written to Realtime Database
         const user = change.after.val();
         const status = user.status;
@@ -211,16 +273,18 @@ exports.onUserStatusChanged = functions.database
         if (status === "offline" && memberId) {
             // only concerned about noticing when someone leaves the election
 
-            var path = `/members/${electionKey}/${memberId}`;
-            // console.log('connected false for', path);
+            var path = `/elections/${electionKey}`;
+            db.ref(path).once("value", snapshot => {
 
-            db.ref(path).update({
-                connected: false
+                // make sure election has not just been delete
+                if (snapshot.exists()) {
+                    path = `/members/${electionKey}/${memberId}`;
+                    db.ref(path).update({
+                        connected: false
+                    });
+                }
             });
-            // .then(() => console.log('disconnected', version, memberId))
-            // .catch(error => {
-            //     console.log("Error disconnecting member.", error);
-            // });
         }
+
         return "done";
     });
