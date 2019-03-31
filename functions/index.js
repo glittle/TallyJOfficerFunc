@@ -1,6 +1,6 @@
 // back end processes for TallyJ Officer
 // include a version number in logs to know when a new version of this code is in use
-const version = 71;
+const version = 74;
 
 console.log("version", version, "registered");
 
@@ -276,12 +276,25 @@ exports.onUserStatusChanged = functions.database
             var path = `/elections/${electionKey}`;
             db.ref(path).once("value", snapshot => {
 
-                // make sure election has not just been delete
+                // make sure election has not just been deleted
                 if (snapshot.exists()) {
-                    path = `/members/${electionKey}/${memberId}`;
-                    db.ref(path).update({
-                        connected: false
-                    });
+                    switch (memberId[0]) {
+                        case 'm':
+                            path = `/members/${electionKey}/${memberId}`;
+                            db.ref(path).update({
+                                connected: false
+                            });
+                            break;
+                        case 'v':
+                            path = `/viewers/${electionKey}/${memberId}`;
+                            db.ref(path).update({
+                                connected: false
+                            });
+                            break;
+                        default:
+                            return;
+                    }
+
                 }
             });
         }
