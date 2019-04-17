@@ -1,6 +1,6 @@
 // back end processes for TallyJ Officer
 // include a version number in logs to know when a new version of this code is in use
-const version = 74;
+const version = 76;
 
 console.log("version", version, "registered");
 
@@ -263,12 +263,13 @@ exports.onUserStatusChanged = functions.database
         // const uid = context.params.uid;
         // console.log('user context', context);
         // Get the data written to Realtime Database
+        var uid = context.params.uid;
         const user = change.after.val();
         const status = user.status;
         const electionKey = user.electionKey;
         const memberId = user.memberId;
 
-        // console.log('status changed', memberId, electionKey, user);
+        console.log('status changed', status, uid, electionKey, memberId, user);
 
         if (status === "offline" && memberId) {
             // only concerned about noticing when someone leaves the election
@@ -294,7 +295,7 @@ exports.onUserStatusChanged = functions.database
                         default:
                             return;
                     }
-
+                    console.log('status changed path', path);
                 }
             });
         }
