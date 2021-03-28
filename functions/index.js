@@ -1,14 +1,14 @@
 // back end processes for TallyJ Officer
 // include a version number in logs to know when a new version of this code is in use
-const version = 76;
-
-console.log("version", version, "registered");
+const version = 77;
+console.log("tallyj officer version", version, "registered");
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 admin.initializeApp();
 // const firestore = admin.firestore();
 const db = admin.database();
+console.log("tallyj officer database", db.repoInternal_ ? db.repoInternal_.key : '?');
 
 exports.onVotingChange = functions.database
     .ref("/voting/{electionKey}")
@@ -17,6 +17,8 @@ exports.onVotingChange = functions.database
 
         const newValue = change.after.val();
         const oldValue = change.before.val();
+
+        console.log('tallyj officer voting old', oldValue, ' --> new', newValue);
 
         // console.log('new', newValue, 'old', oldValue);
 
@@ -82,7 +84,7 @@ function checkIfCompleted(round, memberIds) {
 
     var membersWithEnoughVotes = memberIds.filter(
         memberId =>
-        votes.filter(v => v.voteId === memberId).length >= numVotesRequired
+            votes.filter(v => v.voteId === memberId).length >= numVotesRequired
     );
 
     // console.log('check', numVotesRequired, memberIds, votes, membersWithEnoughVotes);
@@ -105,7 +107,7 @@ exports.onElectionChange = functions.database
         const newValue = change.after.val();
         const oldValue = change.before.val();
 
-        // console.log('new', newValue, 'old', oldValue);
+        //console.log('tallyj officer election old', oldValue, ' --> new', newValue);
 
         if (newValue.votingOpen && !oldValue.votingOpen) {
             console.log("voting just opened", electionKey, newValue);
@@ -172,7 +174,7 @@ exports.onElectionChange = functions.database
         }
 
         if (!newValue.votingOpen && oldValue.votingOpen) {
-            console.log("voting just closed", electionKey);
+            console.log("tallyj officer voting just closed", electionKey);
 
             db.ref(`/members/${electionKey}`).once("value", snapshot => {
                 var members = snapshot.val();
@@ -196,7 +198,7 @@ exports.onElectionChange = functions.database
         }
 
         if (newValue.deleteMe) {
-            console.log("delete election", electionKey);
+            console.log("tallyj officer delete election", electionKey);
 
             // first approach was to delete one by one, but it is too fast to be interesting for the user
             // delete everything...
@@ -210,14 +212,14 @@ exports.onElectionChange = functions.database
             return "deleted election";
         }
 
-        console.log("misc election change new", newValue, "old", oldValue);
+        console.log("tallyj officer misc election change (no action taken) new", newValue, "old", oldValue);
         return "done";
     });
 
 function deleteItems(section, electionKey, cb) {
     var sectionPath = `/${section}/${electionKey}`;
 
-    console.log("deleting", section);
+    console.log("tallyj officer deleting", section);
 
     // if (oneByOne) {
     //     db.ref(sectionPath).once("value", snapshot => {
@@ -269,7 +271,7 @@ exports.onUserStatusChanged = functions.database
         const electionKey = user.electionKey;
         const memberId = user.memberId;
 
-        console.log('status changed', status, uid, electionKey, memberId, user);
+        console.log('tallyj officer status changed', status, uid, electionKey, memberId, user);
 
         if (status === "offline" && memberId) {
             // only concerned about noticing when someone leaves the election
