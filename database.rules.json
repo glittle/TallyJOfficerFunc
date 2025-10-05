@@ -1,24 +1,71 @@
 {
-  "rules":{
-    ".read": true,
-    ".write": true
-  }
-/* Visit https://firebase.google.com/docs/database/security to learn more about security rules. */
-/*"rules": {
-  "status": {
-    "$uid": {
-      ".read": "$uid == auth.uid",
-      ".write": "$uid == auth.uid"      
+  "rules": {
+    ".read": false,
+    ".write": false,
+    
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    },
+    
+    "userElections": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    },
+    
+    "elections": {
+      "$electionKey": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey"
+      }
+    },
+    
+    "members": {
+      "$electionKey": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey"
+      }
+    },
+    
+    "viewers": {
+      "$electionKey": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey"
+      }
+    },
+    
+    "positions": {
+      "$electionKey": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey"
+      }
+    },
+    
+    "voting": {
+      "$electionKey": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey"
+      }
+    },
+    
+    "votingRounds": {
+      "$electionKey": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey"
+      }
+    },
+    
+    "voterSymbols": {
+      "$electionKey": {
+        "$memberId": {
+          ".read": "auth != null && root.child('users').child(auth.uid).child('electionKey').val() === $electionKey && root.child('users').child(auth.uid).child('memberId').val() === $memberId",
+          ".write": false
+        }
+      }
     }
-  },
-  "$any/$electionId":{
-    ".read": "auth.photoURL === $electionId",
-    ".write": "auth.photoURL === $electionId"
-  },
-  "symbols":{
-    ".read": "auth !== null",
-    ".write": false
   }
-  }
-  */
 }
