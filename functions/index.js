@@ -261,12 +261,19 @@ function deleteItems(section, electionKey, cb) {
 
 exports.onUserStatusChanged = functions.database
     .ref("/users/{uid}")
-    .onUpdate((change, context) => {
+    .onWrite((change, context) => {
         // const uid = context.params.uid;
         // console.log('user context', context);
         // Get the data written to Realtime Database
         var uid = context.params.uid;
         const user = change.after.val();
+        
+        // Handle case where user data might not exist
+        if (!user) {
+            console.log('tallyj officer user data is null', uid);
+            return "user data is null";
+        }
+        
         const status = user.status;
         const electionKey = user.electionKey;
         const memberId = user.memberId;
